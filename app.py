@@ -509,7 +509,7 @@ if __name__ == "__main__":
         db.create_all()
     
     host = os.environ.get("FLASK_HOST", "127.0.0.1")
-    port = int(os.environ.get("FLASK_PORT", 5001))
+    port = int(os.environ.get("FLASK_PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     
     logger.info(f"Запуск Flask веб-сервера на {host}:{port} (debug={debug})")
