@@ -513,6 +513,6 @@ if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
     
     logger.info(f"Запуск Flask веб-сервера на {host}:{port} (debug={debug})")
-    logger.info(f"Тестовый запуск 2")
+    logger.info(f"Тестовый запуск 3")
     app.run(host=host, port=port, debug=debug)
 
