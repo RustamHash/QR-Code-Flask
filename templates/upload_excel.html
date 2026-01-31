@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Загрузить Excel - Генератор шаблонов для офиса{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>📊 Загрузка Excel файла</h2>
+    <p class="info-text">
+        Загрузите Excel файл (.xlsx или .xls). Данные будут прочитаны из первой колонки (колонка A),
+        начиная с первой строки. Каждая строка будет преобразована в шаблон.
+    </p>
+</div>
+
+<form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_excel') }}" target="_blank">
+    <div class="form-group">
+        <label for="file">Выберите Excel файл:</label>
+        <input type="file" id="file" name="file" accept=".xlsx,.xls" required>
+    </div>
+    
+    <div class="form-group">
+        <label for="excel_mode">Режим обработки:</label>
+        <select id="excel_mode" name="excel_mode">
+            <option value="one_column" {% if pdf_settings.excel_mode == 'one_column' %}selected{% endif %}>Одна колонка (A) - стандартный режим</option>
+            <option value="two_columns" {% if pdf_settings.excel_mode == 'two_columns' %}selected{% endif %}>Две колонки (A и B) - шаблоны слева и справа</option>
+        </select>
+        <p style="color: #666; font-size: 0.9em; margin-top: 5px;">
+            В режиме "Две колонки" файл должен содержать строго две колонки с данными.
+        </p>
+    </div>
+    
+    <input type="hidden" id="width" name="width" value="{{ pdf_settings.width }}">
+    <input type="hidden" id="height" name="height" value="{{ pdf_settings.height }}">
+    <input type="hidden" id="rows" name="rows" value="{{ pdf_settings.rows_per_page }}">
+    <input type="hidden" id="columns" name="columns" value="{{ pdf_settings.columns_per_page }}">
+    
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeSettingsModal()">&times;</span>
+            <h2 style="margin-bottom: 20px;">⚙️ Настройки PDF</h2>
+            <div id="settingsForm">
+                <div class="settings-grid">
+                    <div class="form-group">
+                        <label for="modal_width">Ширина страницы (мм):</label>
+                        <input type="number" id="modal_width" value="{{ pdf_settings.width }}" min="10" max="1000" step="0.1" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="modal_height">Высота страницы (мм):</label>
+                        <input type="number" id="modal_height" value="{{ pdf_settings.height }}" min="10" max="1000" step="0.1" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="modal_rows">Строк на странице:</label>
+                        <input type="number" id="modal_rows" value="{{ pdf_settings.rows_per_page }}" min="1" max="50" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="modal_columns">Колонок на странице:</label>
+                        <input type="number" id="modal_columns" value="{{ pdf_settings.columns_per_page }}" min="1" max="10" required>
+                    </div>
+                </div>
+                <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                    <strong>Примечание:</strong> В режиме "Две колонки" параметр "Колонок на странице" игнорируется (всегда 2).
+                </p>
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button type="button" class="btn" onclick="saveSettings()">💾 Сохранить</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+        <div>
+            <button type="submit" class="btn">Сгенерировать PDF шаблон</button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary" style="margin-left: 10px;">Назад</a>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="openSettingsModal()">
+            ⚙️ Настройки PDF
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentSettings = {
+        width: {{ pdf_settings.width }},
+        height: {{ pdf_settings.height }},
+        rows_per_page: {{ pdf_settings.rows_per_page }},
+        columns_per_page: {{ pdf_settings.columns_per_page }}
+    };
+    
+    function openSettingsModal() {
+        document.getElementById('settingsModal').classList.add('active');
+        document.getElementById('modal_width').value = currentSettings.width;
+        document.getElementById('modal_height').value = currentSettings.height;
+        document.getElementById('modal_rows').value = currentSettings.rows_per_page;
+        document.getElementById('modal_columns').value = currentSettings.columns_per_page;
+    }
+    
+    function closeSettingsModal() {
+        document.getElementById('settingsModal').classList.remove('active');
+    }
+    
+    function saveSettings() {
+        const width = parseFloat(document.getElementById('modal_width').value);
+        const height = parseFloat(document.getElementById('modal_height').value);
+        const rows = parseInt(document.getElementById('modal_rows').value);
+        const columns = parseInt(document.getElementById('modal_columns').value);
+        
+        if (width < 10 || width > 1000 || height < 10 || height > 1000 || rows < 1 || rows > 50 || columns < 1 || columns > 10) {
+            alert('Пожалуйста, введите корректные значения настроек');
+            return;
+        }
+        
+        fetch('{{ url_for("save_pdf_settings") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                width: width,
+                height: height,
+                rows_per_page: rows,
+                columns_per_page: columns
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentSettings = { width, height, rows_per_page: rows, columns_per_page: columns };
+                document.getElementById('width').value = width;
+                document.getElementById('height').value = height;
+                document.getElementById('rows').value = rows;
+                document.getElementById('columns').value = columns;
+                closeSettingsModal();
+                alert('Настройки сохранены!');
+            } else {
+                alert('Ошибка при сохранении настроек: ' + (data.error || 'Неизвестная ошибка'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка при сохранении настроек');
+        });
+    }
+    
+    window.onclick = function(event) {
+        const modal = document.getElementById('settingsModal');
+        if (event.target == modal) {
+            closeSettingsModal();
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form[method="POST"]');
+        const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+        
+        if (form) {
+            if (submitButton) {
+                submitButton.addEventListener('click', function(e) {
+                    const fileInput = document.getElementById('file');
+                    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                        alert('Пожалуйста, выберите файл');
+                        e.preventDefault();
+                        return false;
+                    }
+                });
+            }
+            
+            form.addEventListener('submit', function(e) {
+                const fileInput = document.getElementById('file');
+                if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                    alert('Пожалуйста, выберите файл');
+                    e.preventDefault();
+                    return false;
+                }
+                
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Генерация PDF...';
+                    
+                    // Возвращаем кнопку в исходное состояние через 2 секунды
+                    // (достаточно времени для начала обработки на сервере)
+                    setTimeout(function() {
+                        if (submitButton) {
+                            submitButton.disabled = false;
+                            submitButton.textContent = 'Сгенерировать PDF шаблон';
+                        }
+                    }, 2000);
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+

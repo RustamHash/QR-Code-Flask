@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Ошибка - Генератор шаблонов для офиса{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>❌ Ошибка</h2>
+    <p class="info-text" style="color: #c33;">
+        {{ error }}
+    </p>
+    <a href="{{ url_for('index') }}" class="btn" style="margin-top: 20px;">Вернуться на главную</a>
+</div>
+{% endblock %}
+

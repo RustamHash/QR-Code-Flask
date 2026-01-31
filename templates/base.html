@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{% block title %}Генератор шаблонов для офиса{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 14px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%),
+                        url("{{ url_for('static', filename='media/fon.jpg') }}") center center / cover no-repeat fixed;
+            background-blend-mode: overlay;
+            min-height: 100vh;
+            padding: 15px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-top: 50px;
+        }
+        
+        header {
+            background: white;
+            border-radius: 0 0 10px 10px;
+            padding: 6px 20px;
+            margin-bottom: 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            width: 100%;
+        }
+        
+        h1 {
+            display: none;
+        }
+        
+        header p {
+            display: none;
+        }
+        
+        nav {
+            margin-top: 0;
+        }
+        
+        nav a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 15px;
+            font-weight: 500;
+            font-size: 12px;
+            transition: color 0.3s;
+            padding: 4px 10px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        nav a:hover {
+            color: #764ba2;
+            background-color: #f0f0f0;
+        }
+        
+        nav a.active {
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-weight: 600;
+        }
+        
+        nav a.active:hover {
+            color: white;
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+        
+        .content {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        
+        .flash {
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 13px;
+        }
+        
+        .flash.error {
+            background-color: #fee;
+            color: #c33;
+            border-left: 4px solid #c33;
+        }
+        
+        .flash.success {
+            background-color: #efe;
+            color: #3c3;
+            border-left: 4px solid #3c3;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #333;
+            font-weight: 500;
+            font-size: 13px;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+        }
+        
+        input[type="file"] {
+            padding: 10px;
+            border: 2px dashed #667eea;
+            border-radius: 5px;
+            background: #f8f9ff;
+            cursor: pointer;
+        }
+        
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+        }
+        
+        .card {
+            background: #f8f9ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        
+        .info-text {
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        
+        .result-box {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .result-item {
+            background: white;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+            word-break: break-all;
+            font-size: 13px;
+        }
+        
+        .result-item strong {
+            color: #667eea;
+        }
+        
+        .image-preview-container {
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .image-preview-container.active {
+            display: block;
+        }
+        
+        .image-preview {
+            max-width: 100%;
+            max-height: 500px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f8f9ff;
+            margin: 15px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .image-preview img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .preview-info {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        
+        .preview-remove {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 15px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .preview-remove:hover {
+            background: #c82333;
+        }
+        
+        #qrPreviewGrid canvas {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        #qrPreviewGrid > div {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        #qrPreviewGrid > div:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 24px;
+            font-weight: bold;
+            position: absolute;
+            right: 12px;
+            top: 8px;
+            cursor: pointer;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: #000;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <nav>
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('index') }}">Главная</a>
+                    <a href="{{ url_for('upload_excel') }}">Загрузить Excel</a>
+                    <a href="{{ url_for('upload_text') }}">Ввести текст</a>
+                    <a href="{{ url_for('decode_qr') }}">Обработать изображение</a>
+                    <a href="{{ url_for('archive') }}">Архив</a>
+                    {% endif %}
+                </nav>
+                {% if current_user.is_authenticated %}
+                <div style="color: #666; font-size: 12px; display: flex; align-items: center; gap: 8px;">
+                    <span>Пользователь: <strong>{{ current_user.username }}</strong></span>
+                    {% if current_user.is_admin == 1 %}
+                    <span style="color: #667eea;">[Админ]</span>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" style="color: #dc3545; text-decoration: none;">Выход</a>
+                </div>
+                {% endif %}
+            </div>
+        </header>
+        
+        <div class="content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    
+    {% block extra_js %}{% endblock %}
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('nav a');
+            
+            navLinks.forEach(link => {
+                const linkPath = link.getAttribute('href');
+                
+                if (currentPath === linkPath || 
+                    (linkPath !== '/' && currentPath.startsWith(linkPath))) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

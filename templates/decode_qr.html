@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Обработать изображение - Генератор шаблонов для офиса{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>🔍 Обработка изображения</h2>
+    <p class="info-text">
+        Загрузите изображение для обработки. Поддерживаются форматы: PNG, JPG, JPEG, GIF, BMP.
+        Если на изображении несколько элементов, все они будут обработаны.
+    </p>
+</div>
+
+<form method="POST" enctype="multipart/form-data" id="decodeForm" action="{{ url_for('decode_qr') }}">
+    <div class="form-group">
+        <label for="file">Выберите изображение для обработки:</label>
+        <input type="file" id="file" name="file" accept="image/*" required>
+    </div>
+    
+    <div class="image-preview-container" id="previewContainer">
+        <div class="image-preview">
+            <img id="previewImage" src="" alt="Предварительный просмотр">
+            <div class="preview-info" id="previewInfo"></div>
+            <button type="button" class="preview-remove" id="removePreview">Удалить изображение</button>
+        </div>
+    </div>
+    
+    <button type="submit" class="btn" id="submitBtn">Обработать изображение</button>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary" style="margin-left: 10px;">Назад</a>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('file');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const previewInfo = document.getElementById('previewInfo');
+        const removePreviewBtn = document.getElementById('removePreview');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            
+            if (file) {
+                if (!file.type.startsWith('image/')) {
+                    alert('Пожалуйста, выберите файл изображения');
+                    fileInput.value = '';
+                    return;
+                }
+                
+                const maxSize = 20 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    alert('Файл слишком большой. Максимальный размер: 20MB');
+                    fileInput.value = '';
+                    return;
+                }
+                
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewContainer.classList.add('active');
+                    
+                    const fileSize = (file.size / 1024).toFixed(2);
+                    previewInfo.textContent = `Файл: ${file.name} (${fileSize} KB)`;
+                    
+                    previewContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                };
+                
+                reader.onerror = function() {
+                    alert('Ошибка при чтении файла');
+                    fileInput.value = '';
+                };
+                
+                reader.readAsDataURL(file);
+            } else {
+                previewContainer.classList.remove('active');
+            }
+        });
+        
+        removePreviewBtn.addEventListener('click', function() {
+            fileInput.value = '';
+            previewContainer.classList.remove('active');
+            previewImage.src = '';
+            previewInfo.textContent = '';
+        });
+        
+        const form = document.getElementById('decodeForm');
+        form.addEventListener('submit', function(e) {
+            if (!fileInput.files || fileInput.files.length === 0) {
+                e.preventDefault();
+                alert('Пожалуйста, выберите изображение');
+                return false;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Обработка...';
+        });
+    });
+</script>
+{% endblock %}
+

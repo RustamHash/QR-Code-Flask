@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Результат обработки - Генератор шаблонов для офиса{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>✅ Результат обработки</h2>
+    <p class="info-text">
+        Найдено элементов: <strong>{{ qr_data|length }}</strong>
+    </p>
+</div>
+
+<div class="result-box">
+    <h3 style="margin-bottom: 15px;">Декодированные данные:</h3>
+    {% for data in qr_data %}
+    <div class="result-item">
+        <strong>Элемент #{{ loop.index }}:</strong><br>
+        <span style="font-family: monospace; font-size: 0.95em;">{{ data }}</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div style="margin-top: 20px;">
+    <a href="{{ url_for('decode_qr') }}" class="btn">Обработать еще</a>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary" style="margin-left: 10px;">На главную</a>
+</div>
+{% endblock %}
+
