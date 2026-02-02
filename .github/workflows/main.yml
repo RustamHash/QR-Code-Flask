@@ -7,11 +7,11 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:  # Позволяет запускать вручную
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: self-hosted  # Запуск на self-hosted runner'е
+    runs-on: self-hosted
     
     steps:
       - name: Checkout code
@@ -20,7 +20,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'  # Версия Python для проекта
+          python-version: '3.10'
 
       - name: Install system dependencies
         run: |
@@ -33,9 +33,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          source .venv/bin/activate
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements.txt
 
       - name: Create necessary directories
         run: |
@@ -43,15 +42,12 @@ jobs:
 
       - name: Initialize database
         run: |
-          source .venv/bin/activate
-          python init_db.py || true
+          .venv/bin/python init_db.py || true
 
       - name: Verify installation
         run: |
-          source .venv/bin/activate
-          python -c "import flask, qrcode, pyzbar, pandas, fpdf2; print('All dependencies installed successfully')"
+          .venv/bin/python -c "import flask, qrcode, pyzbar, pandas, fpdf; print('All dependencies installed successfully')"
 
       - name: Check application syntax
         run: |
-          source .venv/bin/activate
-          python -m py_compile app.py config.py models.py || true
+          .venv/bin/python -m py_compile app.py config.py models.py || true
