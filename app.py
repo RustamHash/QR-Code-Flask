@@ -30,6 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.config['APPLICATION_ROOT'] = '/qr'
 app.config.from_object(Config)
 
 # Инициализация базы данных
