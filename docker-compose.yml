@@ -11,12 +11,17 @@ services:
       - DEFAULT_USERNAME=${DEFAULT_USERNAME:-admin}
       - DEFAULT_PASSWORD=${DEFAULT_PASSWORD:-2103}
     volumes:
-      # Named volumes для данных (решают проблемы с правами доступа)
+      # Named volumes для всех данных (избегают проблем с правами доступа)
       - instance_data:/app/instance
       - uploads_data:/app/uploads
-      # Bind mount для статики (если нужно редактировать файлы на хосте)
-      - ./static/media:/app/static/media
+      - static_media_data:/app/static/media
     restart: unless-stopped
+    command: >
+      bash -c "
+      mkdir -p /app/instance /app/uploads /app/static/media &&
+      python /app/init_db.py || true &&
+      gunicorn --bind 0.0.0.0:5000 --workers 4 --threads 2 --timeout 120 app:app
+      "
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/login')"]
       interval: 30s
@@ -24,9 +29,10 @@ services:
       retries: 3
       start_period: 40s
 
-# Определение named volumes
 volumes:
   instance_data:
     driver: local
   uploads_data:
+    driver: local
+  static_media_data:
     driver: local
