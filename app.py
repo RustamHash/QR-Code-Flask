@@ -8,6 +8,7 @@ from datetime import datetime
 from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
 from models import db, User, Archive, UserSettings
@@ -30,6 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
 app.wsgi_app = ProxyFix(
     app.wsgi_app,
     x_proto=1,
