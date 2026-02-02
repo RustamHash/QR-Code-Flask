@@ -18,15 +18,15 @@ jobs:
         run: |
           cd ~/actions-runner/_work/QR-Code-Flask
           
-          # Останавливаем старый контейнер, если есть
+          # Останавливаем старый контейнер
           docker-compose down || true
           
-          # Строим новый образ на SSD
+          # Строим новый образ
           docker-compose build
           
           # Запускаем контейнер в фоне
           docker-compose up -d
           
-          # Проверяем контейнер
+          # Проверка контейнера
           docker ps --filter "name=qr-code-flask"
           docker inspect --format='{{.State.Health.Status}}' qr-code-flask || echo "Healthcheck failed"
