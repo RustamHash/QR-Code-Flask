@@ -1,0 +1,57 @@
+name: Flask CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Позволяет запускать вручную
+
+jobs:
+  build:
+    runs-on: self-hosted  # Запуск на self-hosted runner'е
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'  # Версия Python для проекта
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libzbar0 || true
+
+      - name: Create virtual environment
+        run: |
+          python3 -m venv .venv
+
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create necessary directories
+        run: |
+          mkdir -p uploads static/media instance
+
+      - name: Initialize database
+        run: |
+          source .venv/bin/activate
+          python init_db.py || true
+
+      - name: Verify installation
+        run: |
+          source .venv/bin/activate
+          python -c "import flask, qrcode, pyzbar, pandas, fpdf2; print('All dependencies installed successfully')"
+
+      - name: Check application syntax
+        run: |
+          source .venv/bin/activate
+          python -m py_compile app.py config.py models.py || true

@@ -51,12 +51,12 @@ python init_db.py
 ### 4. Создание пользователя
 
 ```bash
-python add_user.py admin password123 1
+python add_user.py admin 2103 1
 ```
 
 Где:
 - `admin` - имя пользователя
-- `password123` - пароль
+- `2103` - пароль
 - `1` - администратор (0 для обычного пользователя)
 
 ## Запуск
