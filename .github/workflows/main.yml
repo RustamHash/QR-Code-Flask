@@ -1,11 +1,13 @@
-name: Deploy QR-Code-Flask
+name: Deploy Project
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   deploy:
+    name: Deploy Project
     runs-on: [self-hosted, linux]
 
     steps:
@@ -15,28 +17,29 @@ jobs:
       - name: Build and deploy Docker container
         working-directory: ${{ github.workspace }}
         run: |
-          # Проверяем, что мы в правильной директории
+          set -e
+          
+          echo "Проверка директории проекта"
           pwd
           ls -la
-          
-          # Проверяем наличие docker-compose.yml
+
           if [ ! -f "docker-compose.yml" ]; then
             echo "Ошибка: docker-compose.yml не найден!"
             exit 1
           fi
-          
-          # Останавливаем старый контейнер
+
+          echo "Останавливаем старый контейнер"
           docker-compose down || true
-          
-          # Строим новый образ
+
+          echo "Строим новый образ"
           docker-compose build
-          
-          # Запускаем контейнер в фоне
+
+          echo "Запускаем контейнер в фоне"
           docker-compose up -d
-          
-          # Ждем немного для инициализации
-          sleep 5
-          
-          # Проверка контейнера
+
+          echo "Ждем инициализации контейнера..."
+          sleep 10
+
+          echo "Проверка состояния контейнера"
           docker ps --filter "name=qr-code-flask"
           docker inspect --format='{{.State.Health.Status}}' qr-code-flask || echo "Healthcheck failed"

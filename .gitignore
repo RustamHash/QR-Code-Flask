@@ -47,3 +47,6 @@ static/media/*
 # Environment variables
 .env
 .env.local
+
+# Docker override для локальной разработки
+docker-compose.override.yml
