@@ -1,0 +1,37 @@
+name: Deploy Flask App to Server
+
+on:
+  push:
+    branches:
+      - main  # Триггер для деплоя при пуше в main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Запуск на Ubuntu
+
+    steps:
+      # Checkout репозитория
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Установка зависимостей SSH
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Клонирование проекта на сервер
+      - name: Copy project to server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+            cd ~/flask-project || exit
+            git pull origin main || exit  # Скачиваем последние изменения из репозитория
+            docker-compose down || exit  # Останавливаем старые контейнеры
+            docker-compose up -d --build || exit  # Строим и запускаем контейнеры
+          EOF
+
+      # Проверка статуса контейнеров на сервере
+      - name: Check containers status
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+            "docker ps"  # Показывает, какие контейнеры работают
