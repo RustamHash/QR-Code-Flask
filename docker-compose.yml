@@ -11,10 +11,10 @@ services:
       - DATABASE_URL=sqlite:///instance/database.db
       - FLASK_ENV=production
     volumes:
-      # Монтируем директории для сохранения данных
-      - ./instance:/app/instance
-      - ./uploads:/app/uploads
-      - ./static/media:/app/static/media
+      # Все данные монтируются на HDD
+      - /data/projects/QR-Code-Flask/instance:/app/instance
+      - /data/projects/QR-Code-Flask/uploads:/app/uploads
+      - /data/projects/QR-Code-Flask/static/media:/app/static/media
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/login')"]

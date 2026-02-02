@@ -1,37 +1,32 @@
-name: Deploy Flask App to Server
+name: Deploy QR-Code-Flask
 
 on:
   push:
-    branches:
-      - main  # Триггер для деплоя при пуше в main
+    branches: [ main ]
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # Запуск на Ubuntu
+    runs-on: [self-hosted, linux]
 
     steps:
-      # Checkout репозитория
       - name: Checkout code
-        uses: actions/checkout@v3
-
-      # Установка зависимостей SSH
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.5.3
+        uses: actions/checkout@v4
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          path: ~/actions-runner/_work/QR-Code-Flask
 
-      # Клонирование проекта на сервер
-      - name: Copy project to server
+      - name: Build and deploy Docker container
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-            cd ~/flask-project || exit
-            git pull origin main || exit  # Скачиваем последние изменения из репозитория
-            docker-compose down || exit  # Останавливаем старые контейнеры
-            docker-compose up -d --build || exit  # Строим и запускаем контейнеры
-          EOF
-
-      # Проверка статуса контейнеров на сервере
-      - name: Check containers status
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-            "docker ps"  # Показывает, какие контейнеры работают
+          cd ~/actions-runner/_work/QR-Code-Flask
+          
+          # Останавливаем старый контейнер, если есть
+          docker-compose down || true
+          
+          # Строим новый образ на SSD
+          docker-compose build
+          
+          # Запускаем контейнер в фоне
+          docker-compose up -d
+          
+          # Проверяем контейнер
+          docker ps --filter "name=qr-code-flask"
+          docker inspect --format='{{.State.Health.Status}}' qr-code-flask || echo "Healthcheck failed"
