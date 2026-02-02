@@ -5,7 +5,7 @@ import os
 import logging
 from io import BytesIO
 from datetime import datetime
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 
@@ -83,7 +83,7 @@ def get_user_settings(user_id):
 @app.route("/favicon.ico")
 def favicon():
     """Обработка запроса favicon.ico."""
-    return "", 204
+    return send_from_directory(os.path.join(app.root_path, 'static', 'media'), 'gerb.png', mimetype='image/png')
 
 
 @app.route("/login", methods=["GET", "POST"])
