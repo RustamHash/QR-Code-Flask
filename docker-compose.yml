@@ -8,7 +8,7 @@ services:
       - "5000:5000"
     environment:
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-change-this-secret-key-in-production}
-      - DATABASE_URL=sqlite:///instance/database.db
+      - DATABASE_URL=sqlite:///./instance/database.db
       - FLASK_ENV=production
     volumes:
       # Данные приложения локально
