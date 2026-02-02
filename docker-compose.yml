@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  qr-code-flask:
+    build: .
+    container_name: qr-code-flask
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-change-this-secret-key-in-production}
+      - DATABASE_URL=sqlite:///instance/database.db
+      - FLASK_ENV=production
+    volumes:
+      # Монтируем директории для сохранения данных
+      - ./instance:/app/instance
+      - ./uploads:/app/uploads
+      - ./static/media:/app/static/media
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/login')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
