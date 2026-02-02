@@ -23,10 +23,17 @@ services:
       "
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.qr-code-flask.rule=(Host(`194.150.254.99`) || Host(`192.168.1.109`)) && PathPrefix(`/qr`)"
-      - "traefik.http.routers.qr-code-flask.entrypoints=websecure"
+      # HTTP роутер (для редиректа на HTTPS)
+      - "traefik.http.routers.qr-code-flask.rule=Host(`adgsklad`) && PathPrefix(`/qr`)"
+      - "traefik.http.routers.qr-code-flask.entrypoints=web"
       - "traefik.http.routers.qr-code-flask.middlewares=qr-strip"
-      - "traefik.http.routers.qr-code-flask.tls=true"
+      # HTTPS роутер с Let's Encrypt
+      - "traefik.http.routers.qr-code-flask-secure.rule=Host(`adgsklad`) && PathPrefix(`/qr`)"
+      - "traefik.http.routers.qr-code-flask-secure.entrypoints=websecure"
+      - "traefik.http.routers.qr-code-flask-secure.middlewares=qr-strip"
+      - "traefik.http.routers.qr-code-flask-secure.tls=true"
+      - "traefik.http.routers.qr-code-flask-secure.tls.certresolver=letsencrypt"
+      # Общие настройки
       - "traefik.http.services.qr-code-flask.loadbalancer.server.port=5000"
       - "traefik.http.middlewares.qr-strip.stripprefix.prefixes=/qr"
     healthcheck:
