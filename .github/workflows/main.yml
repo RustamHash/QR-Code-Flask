@@ -14,32 +14,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build and deploy Docker container
-        working-directory: ${{ github.workspace }}
+      - name: Copy to deployment directory
         run: |
           set -e
           
-          echo "Проверка директории проекта"
-          pwd
-          ls -la
+          DEPLOY_DIR="/data/projects/QR-Code-Flask"
+          
+          echo "Создание директории для деплоя..."
+          sudo mkdir -p "$DEPLOY_DIR" || true
+          sudo chown -R $USER:$USER "$DEPLOY_DIR" || true
+          
+          echo "Копирование файлов..."
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            "${{ github.workspace }}/" "$DEPLOY_DIR/"
+          
+          echo "Проверка содержимого..."
+          ls -la "$DEPLOY_DIR"
 
+      - name: Build and deploy Docker container
+        working-directory: /data/projects/QR-Code-Flask
+        run: |
+          set -e
+          
           if [ ! -f "docker-compose.yml" ]; then
             echo "Ошибка: docker-compose.yml не найден!"
             exit 1
           fi
 
-          echo "Останавливаем старый контейнер"
           docker-compose down || true
-
-          echo "Строим новый образ"
           docker-compose build
-
-          echo "Запускаем контейнер в фоне"
           docker-compose up -d
-
-          echo "Ждем инициализации контейнера..."
           sleep 10
-
-          echo "Проверка состояния контейнера"
+          
           docker ps --filter "name=qr-code-flask"
           docker inspect --format='{{.State.Health.Status}}' qr-code-flask || echo "Healthcheck failed"
