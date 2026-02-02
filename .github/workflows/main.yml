@@ -11,12 +11,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          path: ~/actions-runner/_work/QR-Code-Flask
 
       - name: Build and deploy Docker container
+        working-directory: ${{ github.workspace }}
         run: |
-          cd ~/actions-runner/_work/QR-Code-Flask
+          # Проверяем, что мы в правильной директории
+          pwd
+          ls -la
+          
+          # Проверяем наличие docker-compose.yml
+          if [ ! -f "docker-compose.yml" ]; then
+            echo "Ошибка: docker-compose.yml не найден!"
+            exit 1
+          fi
           
           # Останавливаем старый контейнер
           docker-compose down || true
@@ -26,6 +33,9 @@ jobs:
           
           # Запускаем контейнер в фоне
           docker-compose up -d
+          
+          # Ждем немного для инициализации
+          sleep 5
           
           # Проверка контейнера
           docker ps --filter "name=qr-code-flask"
