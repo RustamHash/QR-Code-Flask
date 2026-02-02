@@ -404,9 +404,23 @@
             navLinks.forEach(link => {
                 const linkPath = link.getAttribute('href');
                 
-                if (currentPath === linkPath || 
-                    (linkPath !== '/' && currentPath.startsWith(linkPath))) {
-                    link.classList.add('active');
+                // Нормализуем пути: убираем trailing slash
+                const normalize = (path) => path.replace(/\/$/, '') || '/';
+                const current = normalize(currentPath);
+                const linkNormalized = normalize(linkPath);
+                
+                // Для главной страницы
+                if (linkNormalized === '/') {
+                    // Главная активна, если путь точно "/" или заканчивается на "/" или "/qr"
+                    if (current === '/' || current === '/qr' || current.match(/^\/qr\/?$/)) {
+                        link.classList.add('active');
+                    }
+                } else {
+                    // Для остальных - проверяем, заканчивается ли путь на путь ссылки
+                    // Это работает независимо от префикса
+                    if (current === linkNormalized || current.endsWith(linkNormalized) || current.includes(linkNormalized + '/')) {
+                        link.classList.add('active');
+                    }
                 }
             });
         });
