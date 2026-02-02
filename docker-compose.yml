@@ -24,7 +24,6 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.qr-code-flask.rule=(Host(`194.150.254.99`) || Host(`192.168.1.109`)) && PathPrefix(`/qr`)"
-      #- "traefik.http.routers.qr-code-flask.rule=Host(`194.150.254.99`) || Host(`192.168.1.109`) && PathPrefix(`/qr`)"
       - "traefik.http.routers.qr-code-flask.entrypoints=web"
       - "traefik.http.routers.qr-code-flask.middlewares=qr-strip"
       - "traefik.http.services.qr-code-flask.loadbalancer.server.port=5000"
