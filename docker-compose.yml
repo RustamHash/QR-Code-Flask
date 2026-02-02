@@ -23,12 +23,12 @@ services:
       "
     labels:
       - "traefik.enable=true"
-      # HTTP роутер (для редиректа на HTTPS)
-      - "traefik.http.routers.qr-code-flask.rule=Host(`adgsklad`) && PathPrefix(`/qr`)"
+      # HTTP роутер (домен + локальный IP)
+      - "traefik.http.routers.qr-code-flask.rule=(Host(`adgsklad.ru`) || Host(`192.168.1.109`)) && PathPrefix(`/qr`)"
       - "traefik.http.routers.qr-code-flask.entrypoints=web"
       - "traefik.http.routers.qr-code-flask.middlewares=qr-strip"
-      # HTTPS роутер с Let's Encrypt
-      - "traefik.http.routers.qr-code-flask-secure.rule=Host(`adgsklad`) && PathPrefix(`/qr`)"
+      # HTTPS роутер с Let's Encrypt (только для домена)
+      - "traefik.http.routers.qr-code-flask-secure.rule=(Host(`adgsklad.ru`) || Host(`192.168.1.109`)) && PathPrefix(`/qr`)"
       - "traefik.http.routers.qr-code-flask-secure.entrypoints=websecure"
       - "traefik.http.routers.qr-code-flask-secure.middlewares=qr-strip"
       - "traefik.http.routers.qr-code-flask-secure.tls=true"
