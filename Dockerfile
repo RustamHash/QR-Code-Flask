@@ -14,13 +14,17 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir gunicorn
 
+# Копируем entrypoint скрипт сначала
+COPY docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
+
 COPY . .
 
-RUN mkdir -p uploads static/media instance
-RUN python init_db.py || true
+# Создаем директории
+RUN mkdir -p uploads static/media instance && \
+    chmod -R 755 uploads static/media instance
 
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
+# Запускаем от root для упрощения (простой проект, не требует повышенной безопасности)
 
 EXPOSE 5000
 ENV FLASK_APP=app.py
@@ -30,4 +34,5 @@ ENV PYTHONUNBUFFERED=1
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/login')" || exit 1
 
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--threads", "2", "--timeout", "120", "app:app"]

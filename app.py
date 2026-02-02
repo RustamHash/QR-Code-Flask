@@ -42,8 +42,10 @@ login_manager.login_view = "login"
 login_manager.login_message = "Пожалуйста, войдите в систему для доступа к этой странице."
 login_manager.login_message_category = "error"
 
-# Создаем папку для загрузок
+# Создаем необходимые директории
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+os.makedirs("instance", exist_ok=True)
+os.makedirs("static/media", exist_ok=True)
 
 
 @login_manager.user_loader

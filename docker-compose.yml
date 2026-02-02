@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   qr-code-flask:
     build: .
@@ -10,10 +8,13 @@ services:
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-change-this-secret-key-in-production}
       - DATABASE_URL=sqlite:///./instance/database.db
       - FLASK_ENV=production
+      - DEFAULT_USERNAME=${DEFAULT_USERNAME:-admin}
+      - DEFAULT_PASSWORD=${DEFAULT_PASSWORD:-2103}
     volumes:
-      # Данные приложения локально
-      - ./instance:/app/instance
-      - ./uploads:/app/uploads
+      # Named volumes для данных (решают проблемы с правами доступа)
+      - instance_data:/app/instance
+      - uploads_data:/app/uploads
+      # Bind mount для статики (если нужно редактировать файлы на хосте)
       - ./static/media:/app/static/media
     restart: unless-stopped
     healthcheck:
@@ -22,3 +23,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+# Определение named volumes
+volumes:
+  instance_data:
+    driver: local
+  uploads_data:
+    driver: local

@@ -10,7 +10,7 @@ with app.app_context():
     
     # Создаем пользователя по умолчанию, если его нет
     default_username = os.environ.get("DEFAULT_USERNAME", "admin")
-    default_password = os.environ.get("DEFAULT_PASSWORD", "admin123")
+    default_password = os.environ.get("DEFAULT_PASSWORD", "2103")
     
     existing_user = User.query.filter_by(username=default_username).first()
     if not existing_user:
