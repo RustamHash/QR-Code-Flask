@@ -2,8 +2,6 @@ services:
   qr-code-flask:
     build: .
     container_name: qr-code-flask
-    ports:
-      - "5000:5000"
     environment:
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-change-this-secret-key-in-production}
       - DATABASE_URL=sqlite:///./instance/database.db
@@ -13,25 +11,23 @@ services:
     volumes:
       - instance_data:/app/instance
       - uploads_data:/app/uploads
-      - static_media_data:/app/static/media
+      - ./static/media:/app/static/media
     restart: unless-stopped
+    networks:
+      - traefik-network
     command: >
       bash -c "
       mkdir -p /app/instance /app/uploads /app/static/media;
-      if [ ! -f /app/static/media/fon.jpg ] || [ ! -f /app/static/media/gerb.png ]; then
-        echo 'Инициализация статических файлов в volume...';
-        # Проверяем, есть ли файлы в образе (до монтирования volume)
-        # Копируем из исходной директории образа, если доступна
-        if [ -d /app/static/media ] && [ -f /app/static/media/fon.jpg ]; then
-          cp /app/static/media/fon.jpg /app/static/media/ 2>/dev/null || true;
-        fi;
-        if [ -d /app/static/media ] && [ -f /app/static/media/gerb.png ]; then
-          cp /app/static/media/gerb.png /app/static/media/ 2>/dev/null || true;
-        fi;
-      fi;
       python /app/init_db.py || true;
-      gunicorn --bind 0.0.0.0:5000 --workers 4 --threads 2 --timeout 120 app:app
+      exec gunicorn --bind 0.0.0.0:5000 --workers 4 --threads 2 --timeout 120 app:app
       "
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.qr-code-flask.rule=Host(`194.150.254.99`) || Host(`192.168.1.109`) && PathPrefix(`/qr`)"
+      - "traefik.http.routers.qr-code-flask.entrypoints=web"
+      - "traefik.http.routers.qr-code-flask.middlewares=qr-strip"
+      - "traefik.http.services.qr-code-flask.loadbalancer.server.port=5000"
+      - "traefik.http.middlewares.qr-strip.stripprefix.prefixes=/qr"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/login')"]
       interval: 30s
@@ -44,5 +40,7 @@ volumes:
     driver: local
   uploads_data:
     driver: local
-  static_media_data:
-    driver: local
+
+networks:
+  traefik-network:
+    external: true

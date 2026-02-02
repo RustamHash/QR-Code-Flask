@@ -36,10 +36,13 @@ instance/
 Thumbs.db
 
 # Uploads and media
+# Uploads and media
 uploads/*
 !uploads/.gitkeep
 static/media/*
 !static/media/.gitkeep
+!static/media/fon.jpg
+!static/media/gerb.png
 
 # Logs
 *.log
