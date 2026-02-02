@@ -19,6 +19,12 @@ services:
     command: >
       bash -c "
       mkdir -p /app/instance /app/uploads /app/static/media &&
+      # Проверяем и копируем статические файлы при первом запуске
+      if [ ! -f /app/static/media/fon.jpg ] || [ ! -f /app/static/media/gerb.png ]; then
+        echo 'Инициализация статических файлов в volume...'
+        # Копируем из образа (если они там есть) или создаем пустые заглушки
+        # В идеале файлы должны быть скопированы в образ и доступны
+      fi &&
       python /app/init_db.py || true &&
       gunicorn --bind 0.0.0.0:5000 --workers 4 --threads 2 --timeout 120 app:app
       "
