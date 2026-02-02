@@ -23,16 +23,26 @@ services:
       "
     labels:
       - "traefik.enable=true"
-      # HTTP роутер (домен + локальный IP)
-      - "traefik.http.routers.qr-code-flask.rule=(Host(`adgsklad.ru`) || Host(`192.168.1.109`)) && PathPrefix(`/qr`)"
+      # HTTP роутер для домена (для Let's Encrypt challenge)
+      - "traefik.http.routers.qr-code-flask.rule=Host(`adgsklad.ru`) && PathPrefix(`/qr`)"
       - "traefik.http.routers.qr-code-flask.entrypoints=web"
       - "traefik.http.routers.qr-code-flask.middlewares=qr-strip"
-      # HTTPS роутер с Let's Encrypt (только для домена)
-      - "traefik.http.routers.qr-code-flask-secure.rule=(Host(`adgsklad.ru`) || Host(`192.168.1.109`)) && PathPrefix(`/qr`)"
+      # HTTP роутер для локального IP
+      - "traefik.http.routers.qr-code-flask-local.rule=Host(`192.168.1.109`) && PathPrefix(`/qr`)"
+      - "traefik.http.routers.qr-code-flask-local.entrypoints=web"
+      - "traefik.http.routers.qr-code-flask-local.middlewares=qr-strip"
+      # HTTPS роутер для домена с Let's Encrypt
+      - "traefik.http.routers.qr-code-flask-secure.rule=Host(`adgsklad.ru`) && PathPrefix(`/qr`)"
       - "traefik.http.routers.qr-code-flask-secure.entrypoints=websecure"
       - "traefik.http.routers.qr-code-flask-secure.middlewares=qr-strip"
       - "traefik.http.routers.qr-code-flask-secure.tls=true"
       - "traefik.http.routers.qr-code-flask-secure.tls.certresolver=letsencrypt"
+      # HTTPS роутер для локального IP (без Let's Encrypt)
+      - "traefik.http.routers.qr-code-flask-secure-local.rule=Host(`192.168.1.109`) && PathPrefix(`/qr`)"
+      - "traefik.http.routers.qr-code-flask-secure-local.entrypoints=websecure"
+      - "traefik.http.routers.qr-code-flask-secure-local.middlewares=qr-strip"
+      - "traefik.http.routers.qr-code-flask-secure-local.tls=true"
+      # БЕЗ certresolver для локального IP
       # Общие настройки
       - "traefik.http.services.qr-code-flask.loadbalancer.server.port=5000"
       - "traefik.http.middlewares.qr-strip.stripprefix.prefixes=/qr"
