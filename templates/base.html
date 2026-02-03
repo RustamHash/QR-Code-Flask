@@ -407,8 +407,8 @@
                 // Нормализуем пути: убираем trailing slash
                 const normalize = (path) => {
                     let normalized = path.replace(/\/$/, '') || '/';
-                    // Если путь заканчивается на /qr, считаем его главной
-                    if (normalized === '/qr') {
+                    // Если путь заканчивается на /flask, считаем его главной
+                    if (normalized === '/flask') {
                         return '/';
                     }
                     return normalized;
