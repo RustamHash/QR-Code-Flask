@@ -405,20 +405,28 @@
                 const linkPath = link.getAttribute('href');
                 
                 // Нормализуем пути: убираем trailing slash
-                const normalize = (path) => path.replace(/\/$/, '') || '/';
+                const normalize = (path) => {
+                    let normalized = path.replace(/\/$/, '') || '/';
+                    // Если путь заканчивается на /qr, считаем его главной
+                    if (normalized === '/qr') {
+                        return '/';
+                    }
+                    return normalized;
+                };
+                
                 const current = normalize(currentPath);
                 const linkNormalized = normalize(linkPath);
                 
                 // Для главной страницы
                 if (linkNormalized === '/') {
-                    // Главная активна, если путь точно "/" или заканчивается на "/" или "/qr"
-                    if (current === '/' || current === '/qr' || current.match(/^\/qr\/?$/)) {
+                    // Главная активна только если текущий путь тоже главная
+                    if (current === '/') {
                         link.classList.add('active');
                     }
                 } else {
-                    // Для остальных - проверяем, заканчивается ли путь на путь ссылки
-                    // Это работает независимо от префикса
-                    if (current === linkNormalized || current.endsWith(linkNormalized) || current.includes(linkNormalized + '/')) {
+                    // Для остальных - точное совпадение или путь начинается с linkNormalized + '/'
+                    // Используем startsWith для точного совпадения начала пути
+                    if (current === linkNormalized || current.startsWith(linkNormalized + '/')) {
                         link.classList.add('active');
                     }
                 }
