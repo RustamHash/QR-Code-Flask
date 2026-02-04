@@ -6,6 +6,7 @@ from typing import List, Tuple
 import logging
 
 from .exceptions import TextProcessingError
+from .excel_service import convert_scientific_notation
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,9 @@ def process_text_message(text: str) -> Tuple[List[str], bool]:
             raise TextProcessingError(
                 f"Количество строк ({len(lines)}) превышает максимальный лимит (1000 строк)"
             )
+
+        # Применяем преобразование экспоненциальной записи к каждой строке
+        lines = [convert_scientific_notation(line) for line in lines]
 
         # Определяем формат: одна строка или несколько
         is_single_line = len(lines) == 1

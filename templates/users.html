@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Управление пользователями - Генератор шаблонов для офиса{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>👥 Управление пользователями</h2>
+    <p class="info-text" style="margin-bottom: 0;">Создание и редактирование пользователей системы</p>
+</div>
+
+<div class="card" style="margin-top: 15px; padding: 15px;">
+    <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 16px; color: #667eea;">Создать нового пользователя</h3>
+    <form method="POST" action="{{ url_for('create_user') }}" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+        <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+            <label for="username" style="font-size: 12px; margin-bottom: 4px;">Имя пользователя:</label>
+            <input type="text" id="username" name="username" required 
+                   placeholder="Введите имя пользователя"
+                   style="width: 100%; padding: 6px; font-size: 13px; border: 1px solid #ddd; border-radius: 3px;">
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+            <label for="full_name" style="font-size: 12px; margin-bottom: 4px;">Имя (необязательно):</label>
+            <input type="text" id="full_name" name="full_name" 
+                   placeholder="Полное имя"
+                   style="width: 100%; padding: 6px; font-size: 13px; border: 1px solid #ddd; border-radius: 3px;">
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+            <label for="password" style="font-size: 12px; margin-bottom: 4px;">Пароль:</label>
+            <input type="password" id="password" name="password" required 
+                   placeholder="Введите пароль"
+                   style="width: 100%; padding: 6px; font-size: 13px; border: 1px solid #ddd; border-radius: 3px;">
+        </div>
+        <div class="form-group" style="flex: 0 0 150px; margin-bottom: 0;">
+            <label for="is_admin" style="font-size: 12px; margin-bottom: 4px;">Роль:</label>
+            <select id="is_admin" name="is_admin" style="width: 100%; padding: 6px; font-size: 13px;">
+                <option value="0">Обычный пользователь</option>
+                <option value="1">Администратор</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 0;">
+            <button type="submit" class="btn" style="padding: 6px 16px; font-size: 13px;">Создать</button>
+        </div>
+    </form>
+</div>
+
+{% if users %}
+<div style="margin-top: 15px; overflow-x: auto;">
+    <table class="users-table">
+        <thead>
+            <tr>
+                <th style="width: 30px;">№</th>
+                <th style="min-width: 200px;">Имя / Логин</th>
+                <th style="width: 120px;">Роль</th>
+                <th style="width: 150px;">Дата создания</th>
+                <th style="width: 140px;">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td style="text-align: center;">{{ loop.index }}</td>
+                <td style="font-weight: 500;">
+                    {{ user.get_display_name() }}
+                    <span style="color: #999; font-size: 11px; font-weight: normal;">({{ user.username }})</span>
+                </td>
+                <td style="text-align: center;">
+                    {% if user.is_admin == 1 %}
+                    <span style="color: #dc3545; font-weight: 600;">Администратор</span>
+                    {% else %}
+                    <span style="color: #666;">Пользователь</span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 12px; color: #666;">{{ user.created_at.strftime("%d.%m.%Y %H:%M") }}</td>
+                <td style="text-align: center;">
+                    <div style="display: flex; gap: 6px; justify-content: center;">
+                        <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn-table" style="padding: 4px 10px; font-size: 12px;">Редактировать</a>
+                        {% if user.id != current_user.id %}
+                        <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Вы уверены, что хотите удалить пользователя {{ user.get_display_name() }}? Это действие нельзя отменить.');">
+                            <button type="submit" class="btn-table" style="background: #dc3545; padding: 4px 10px; font-size: 12px; border: none; cursor: pointer;">Удалить</button>
+                        </form>
+                        {% else %}
+                        <span style="color: #999; font-size: 11px;">Текущий</span>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <p class="info-text">Пользователи не найдены.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .users-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        font-size: 13px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .users-table thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .users-table th {
+        padding: 10px 8px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        white-space: nowrap;
+    }
+    
+    .users-table tbody tr {
+        border-bottom: 1px solid #e0e0e0;
+        transition: background-color 0.2s;
+    }
+    
+    .users-table tbody tr:nth-child(even) {
+        background-color: #f8f9ff;
+    }
+    
+    .users-table tbody tr:hover {
+        background-color: #e8ebff;
+    }
+    
+    .users-table td {
+        padding: 8px;
+        border-right: 1px solid #e0e0e0;
+        vertical-align: middle;
+    }
+    
+    .users-table tbody tr:last-child {
+        border-bottom: 2px solid #667eea;
+    }
+    
+    .btn-table {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: opacity 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-table:hover {
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}

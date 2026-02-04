@@ -17,8 +17,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # Создаем директории
-RUN mkdir -p uploads static/media instance && \
-    chmod -R 755 uploads static/media instance
+RUN mkdir -p uploads static/media instance storage && \
+    chmod -R 755 uploads static/media instance storage
 
 # Запускаем от root для упрощения (простой проект, не требует повышенной безопасности)
 

@@ -3,6 +3,9 @@ Flask веб-приложение для генерации QR-кодов.
 """
 import os
 import logging
+import uuid
+import mimetypes
+from functools import wraps
 from io import BytesIO
 from datetime import datetime
 from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify, send_from_directory
@@ -11,7 +14,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
-from models import db, User, Archive, UserSettings
+from models import db, User, Archive, UserSettings, FileStorage, Message
 from services.excel_service import read_data_from_excel, read_key_value_pairs_from_excel
 from services.text_service import process_text_message
 from services.pdf_service import create_qr_pdf, create_qr_pdf_from_pairs
@@ -52,6 +55,7 @@ login_manager.login_message_category = "error"
 
 # Создаем необходимые директории
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+os.makedirs(app.config["STORAGE_FOLDER"], exist_ok=True)
 os.makedirs("instance", exist_ok=True)
 os.makedirs("static/media", exist_ok=True)
 
@@ -453,6 +457,194 @@ def update_archive_comment(archive_id):
     return jsonify({"success": True})
 
 
+@app.route("/storage", methods=["GET"])
+@login_required
+def storage():
+    """Страница хранилища файлов."""
+    page = int(request.args.get("page", 1))
+    per_page = 20
+    offset = (page - 1) * per_page
+
+    filter_user_id = request.args.get("user_id", type=int)
+    date_from_str = request.args.get("date_from", "")
+    date_to_str = request.args.get("date_to", "")
+    search_query = request.args.get("search", "").strip()
+
+    date_from = None
+    date_to = None
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    all_users = []
+    if current_user.is_admin == 1:
+        all_users = User.query.all()
+
+    if current_user.is_admin == 1:
+        filter_user = filter_user_id if filter_user_id else None
+    else:
+        filter_user = current_user.id
+
+    query = FileStorage.query
+    if filter_user:
+        query = query.filter(FileStorage.user_id == filter_user)
+    if date_from:
+        query = query.filter(FileStorage.created_at >= datetime.combine(date_from, datetime.min.time()))
+    if date_to:
+        query = query.filter(FileStorage.created_at <= datetime.combine(date_to, datetime.max.time()))
+    if search_query:
+        query = query.filter(
+            FileStorage.original_filename.contains(search_query) |
+            FileStorage.description.contains(search_query)
+        )
+
+    total = query.count()
+    files = query.order_by(FileStorage.created_at.desc()).limit(per_page).offset(offset).all()
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+
+    filter_params = {
+        "user_id": filter_user_id,
+        "date_from": date_from_str,
+        "date_to": date_to_str,
+        "search": search_query,
+    }
+
+    return render_template(
+        "storage.html",
+        files=files,
+        page=page,
+        total_pages=total_pages,
+        all_users=all_users,
+        filter_params=filter_params,
+    )
+
+
+@app.route("/storage/upload", methods=["POST"])
+@login_required
+def storage_upload():
+    """Загрузка файла в хранилище."""
+    if "file" not in request.files:
+        flash("Файл не выбран", "error")
+        return redirect(url_for("storage"))
+
+    file = request.files["file"]
+    if file.filename == "":
+        flash("Файл не выбран", "error")
+        return redirect(url_for("storage"))
+
+    try:
+        # Читаем файл
+        file_bytes = file.read()
+        file_size = len(file_bytes)
+        
+        if file_size == 0:
+            flash("Файл пустой", "error")
+            return redirect(url_for("storage"))
+
+        # Проверяем размер файла
+        if file_size > app.config["MAX_CONTENT_LENGTH"]:
+            flash(f"Файл слишком большой. Максимальный размер: {app.config['MAX_CONTENT_LENGTH'] / (1024*1024):.0f} MB", "error")
+            return redirect(url_for("storage"))
+
+        # Получаем описание (если есть)
+        description = request.form.get("description", "").strip()
+
+        # Генерируем уникальное имя файла
+        original_filename = secure_filename(file.filename)
+        file_ext = os.path.splitext(original_filename)[1]
+        unique_filename = f"{uuid.uuid4().hex}{file_ext}"
+        file_path = os.path.join(app.config["STORAGE_FOLDER"], unique_filename)
+
+        # Определяем MIME тип
+        mime_type, _ = mimetypes.guess_type(original_filename)
+
+        # Сохраняем файл на диск
+        with open(file_path, "wb") as f:
+            f.write(file_bytes)
+
+        # Сохраняем метаданные в БД
+        file_storage = FileStorage(
+            user_id=current_user.id,
+            filename=unique_filename,
+            original_filename=original_filename,
+            file_path=file_path,
+            file_size=file_size,
+            mime_type=mime_type,
+            description=description if description else None
+        )
+        db.session.add(file_storage)
+        db.session.commit()
+
+        flash(f"Файл '{original_filename}' успешно загружен", "success")
+        return redirect(url_for("storage"))
+
+    except Exception as e:
+        logger.error(f"Ошибка загрузки файла: {e}", exc_info=True)
+        flash(f"Ошибка при загрузке файла: {str(e)}", "error")
+        return redirect(url_for("storage"))
+
+
+@app.route("/storage/<int:file_id>/download")
+@login_required
+def storage_download(file_id):
+    """Скачивание файла из хранилища."""
+    file_storage = FileStorage.query.get_or_404(file_id)
+
+    # Проверка прав доступа
+    if current_user.is_admin != 1 and file_storage.user_id != current_user.id:
+        flash("Нет доступа к этому файлу", "error")
+        return redirect(url_for("storage"))
+
+    # Проверяем существование файла
+    if not os.path.exists(file_storage.file_path):
+        flash("Файл не найден на диске", "error")
+        return redirect(url_for("storage"))
+
+    return send_file(
+        file_storage.file_path,
+        mimetype=file_storage.mime_type or "application/octet-stream",
+        as_attachment=True,
+        download_name=file_storage.original_filename
+    )
+
+
+@app.route("/storage/<int:file_id>/delete", methods=["POST"])
+@login_required
+def storage_delete(file_id):
+    """Удаление файла из хранилища."""
+    file_storage = FileStorage.query.get_or_404(file_id)
+
+    # Проверка прав доступа
+    if current_user.is_admin != 1 and file_storage.user_id != current_user.id:
+        flash("Нет доступа к этому файлу", "error")
+        return redirect(url_for("storage"))
+
+    try:
+        # Удаляем файл с диска
+        if os.path.exists(file_storage.file_path):
+            os.remove(file_storage.file_path)
+
+        # Удаляем запись из БД
+        original_filename = file_storage.original_filename
+        db.session.delete(file_storage)
+        db.session.commit()
+
+        flash(f"Файл '{original_filename}' успешно удален", "success")
+    except Exception as e:
+        logger.error(f"Ошибка удаления файла: {e}", exc_info=True)
+        flash(f"Ошибка при удалении файла: {str(e)}", "error")
+        db.session.rollback()
+
+    return redirect(url_for("storage"))
+
+
 @app.route("/save_pdf_settings", methods=["POST"])
 @login_required
 def save_pdf_settings():
@@ -500,6 +692,253 @@ def save_pdf_settings():
         return jsonify({"success": False, "error": "Ошибка при сохранении настроек"}), 500
 
 
+@app.route("/chat")
+@login_required
+def chat():
+    """Страница группового чата."""
+    return render_template("chat.html")
+
+
+@app.route("/chat/messages", methods=["GET"])
+@login_required
+def chat_messages():
+    """Получить все сообщения (для первоначальной загрузки)."""
+    try:
+        # Получаем последние 100 сообщений
+        messages = Message.query.order_by(Message.created_at.desc()).limit(100).all()
+        messages.reverse()  # Переворачиваем для отображения от старых к новым
+        
+        return jsonify({
+            "messages": [msg.to_dict() for msg in messages]
+        })
+    except Exception as e:
+        logger.error(f"Ошибка получения сообщений: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Ошибка при получении сообщений"}), 500
+
+
+@app.route("/chat/latest", methods=["GET"])
+@login_required
+def chat_latest():
+    """Получить новые сообщения после указанного ID (для polling)."""
+    try:
+        last_id = request.args.get("last_id", type=int, default=0)
+        
+        # Получаем сообщения после указанного ID
+        messages = Message.query.filter(Message.id > last_id).order_by(Message.created_at.asc()).all()
+        
+        return jsonify({
+            "messages": [msg.to_dict() for msg in messages],
+            "has_more": False
+        })
+    except Exception as e:
+        logger.error(f"Ошибка получения новых сообщений: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Ошибка при получении новых сообщений"}), 500
+
+
+@app.route("/chat/send", methods=["POST"])
+@login_required
+def chat_send():
+    """Отправить сообщение в чат."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "Нет данных"}), 400
+        
+        content = data.get("content", "").strip()
+        
+        # Валидация
+        if not content:
+            return jsonify({"success": False, "error": "Сообщение не может быть пустым"}), 400
+        
+        if len(content) > 5000:
+            return jsonify({"success": False, "error": "Сообщение слишком длинное (максимум 5000 символов)"}), 400
+        
+        # Создаем сообщение
+        message = Message(
+            user_id=current_user.id,
+            content=content
+        )
+        db.session.add(message)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": message.to_dict()
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка отправки сообщения: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({"success": False, "error": "Ошибка при отправке сообщения"}), 500
+
+
+def admin_required(f):
+    """Декоратор для проверки прав администратора."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.is_admin != 1:
+            flash("Доступ запрещен. Требуются права администратора.", "error")
+            return redirect(url_for("index"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.route("/users")
+@login_required
+@admin_required
+def users():
+    """Страница управления пользователями (только для админов)."""
+    all_users = User.query.order_by(User.username).all()
+    return render_template("users.html", users=all_users)
+
+
+@app.route("/users/create", methods=["POST"])
+@login_required
+@admin_required
+def create_user():
+    """Создание нового пользователя."""
+    try:
+        username = request.form.get("username", "").strip()
+        full_name = request.form.get("full_name", "").strip()
+        password = request.form.get("password", "")
+        is_admin = request.form.get("is_admin", "0")
+        
+        # Валидация
+        if not username:
+            flash("Имя пользователя не может быть пустым", "error")
+            return redirect(url_for("users"))
+        
+        if len(username) > 80:
+            flash("Имя пользователя слишком длинное (максимум 80 символов)", "error")
+            return redirect(url_for("users"))
+        
+        if full_name and len(full_name) > 200:
+            flash("Имя слишком длинное (максимум 200 символов)", "error")
+            return redirect(url_for("users"))
+        
+        if not password:
+            flash("Пароль не может быть пустым", "error")
+            return redirect(url_for("users"))
+        
+        if len(password) < 3:
+            flash("Пароль должен содержать минимум 3 символа", "error")
+            return redirect(url_for("users"))
+        
+        # Проверка на существующего пользователя
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash(f"Пользователь '{username}' уже существует", "error")
+            return redirect(url_for("users"))
+        
+        # Создание пользователя
+        user = User(
+            username=username,
+            full_name=full_name if full_name else None,
+            is_admin=1 if is_admin == "1" else 0
+        )
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        
+        flash(f"Пользователь '{username}' успешно создан", "success")
+        return redirect(url_for("users"))
+        
+    except Exception as e:
+        logger.error(f"Ошибка создания пользователя: {e}", exc_info=True)
+        db.session.rollback()
+        flash(f"Ошибка при создании пользователя: {str(e)}", "error")
+        return redirect(url_for("users"))
+
+
+@app.route("/users/<int:user_id>/edit", methods=["GET", "POST"])
+@login_required
+@admin_required
+def edit_user(user_id):
+    """Редактирование пользователя."""
+    user = User.query.get_or_404(user_id)
+    
+    # Нельзя редактировать самого себя через этот интерфейс (для безопасности)
+    if user.id == current_user.id:
+        flash("Вы не можете редактировать свой собственный аккаунт через этот интерфейс", "error")
+        return redirect(url_for("users"))
+    
+    if request.method == "POST":
+        try:
+            username = request.form.get("username", "").strip()
+            full_name = request.form.get("full_name", "").strip()
+            password = request.form.get("password", "").strip()
+            is_admin = request.form.get("is_admin", "0")
+            
+            # Валидация
+            if not username:
+                flash("Имя пользователя не может быть пустым", "error")
+                return redirect(url_for("edit_user", user_id=user_id))
+            
+            if len(username) > 80:
+                flash("Имя пользователя слишком длинное (максимум 80 символов)", "error")
+                return redirect(url_for("edit_user", user_id=user_id))
+            
+            if full_name and len(full_name) > 200:
+                flash("Имя слишком длинное (максимум 200 символов)", "error")
+                return redirect(url_for("edit_user", user_id=user_id))
+            
+            # Проверка на существующего пользователя (если имя изменилось)
+            if username != user.username:
+                existing_user = User.query.filter_by(username=username).first()
+                if existing_user:
+                    flash(f"Пользователь '{username}' уже существует", "error")
+                    return redirect(url_for("edit_user", user_id=user_id))
+            
+            # Обновление данных
+            user.username = username
+            user.full_name = full_name if full_name else None
+            user.is_admin = 1 if is_admin == "1" else 0
+            
+            # Обновление пароля (если указан)
+            if password:
+                if len(password) < 3:
+                    flash("Пароль должен содержать минимум 3 символа", "error")
+                    return redirect(url_for("edit_user", user_id=user_id))
+                user.set_password(password)
+            
+            db.session.commit()
+            flash(f"Пользователь '{username}' успешно обновлен", "success")
+            return redirect(url_for("users"))
+            
+        except Exception as e:
+            logger.error(f"Ошибка редактирования пользователя: {e}", exc_info=True)
+            db.session.rollback()
+            flash(f"Ошибка при редактировании пользователя: {str(e)}", "error")
+            return redirect(url_for("edit_user", user_id=user_id))
+    
+    return render_template("edit_user.html", user=user)
+
+
+@app.route("/users/<int:user_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def delete_user(user_id):
+    """Удаление пользователя."""
+    user = User.query.get_or_404(user_id)
+    
+    # Нельзя удалить самого себя
+    if user.id == current_user.id:
+        flash("Вы не можете удалить свой собственный аккаунт", "error")
+        return redirect(url_for("users"))
+    
+    try:
+        username = user.username
+        db.session.delete(user)
+        db.session.commit()
+        flash(f"Пользователь '{username}' успешно удален", "success")
+    except Exception as e:
+        logger.error(f"Ошибка удаления пользователя: {e}", exc_info=True)
+        db.session.rollback()
+        flash(f"Ошибка при удалении пользователя: {str(e)}", "error")
+    
+    return redirect(url_for("users"))
+
+
 @app.errorhandler(413)
 def too_large(e):
     """Обработка ошибки слишком большого файла."""
@@ -514,8 +953,44 @@ def internal_error(e):
     return render_template("error.html", error="Внутренняя ошибка сервера"), 500
 
 
+def migrate_add_full_name():
+    """Добавляет колонку full_name в таблицу users, если её нет."""
+    import sqlite3
+    # Получаем путь к базе данных
+    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+    if not db_uri.startswith('sqlite:///'):
+        return  # Не SQLite, пропускаем
+    
+    db_path = db_uri.replace('sqlite:///', '')
+    
+    if not os.path.exists(db_path):
+        return  # База данных не существует, будет создана через db.create_all()
+    
+    # Подключаемся к SQLite напрямую для проверки и добавления колонки
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    try:
+        # Проверяем, существует ли колонка full_name
+        cursor.execute("PRAGMA table_info(users)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'full_name' not in columns:
+            logger.info("Добавляю колонку 'full_name' в таблицу users...")
+            cursor.execute("ALTER TABLE users ADD COLUMN full_name VARCHAR(200)")
+            conn.commit()
+            logger.info("Колонка 'full_name' успешно добавлена!")
+    except Exception as e:
+        logger.error(f"Ошибка при миграции: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     with app.app_context():
+        # Выполняем миграцию перед созданием таблиц
+        migrate_add_full_name()
         db.create_all()
     
     host = os.environ.get("FLASK_HOST", "0.0.0.0")

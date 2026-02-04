@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Хранилище - Генератор шаблонов для офиса{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>📁 Хранилище файлов</h2>
+    {% if current_user.is_admin == 1 %}
+    <p class="info-text" style="color: #667eea; font-weight: 600; margin-bottom: 0;">Вы просматриваете все файлы (режим администратора)</p>
+    {% endif %}
+</div>
+
+<div class="card" style="margin-top: 15px; padding: 15px;">
+    <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 16px; color: #667eea;">Загрузить файл</h3>
+    <form method="POST" action="{{ url_for('storage_upload') }}" enctype="multipart/form-data" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+        <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+            <label for="file" style="font-size: 12px; margin-bottom: 4px;">Файл:</label>
+            <input type="file" id="file" name="file" required 
+                   style="width: 100%; padding: 6px; font-size: 13px; border: 1px solid #ddd; border-radius: 3px;">
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+            <label for="description" style="font-size: 12px; margin-bottom: 4px;">Описание (необязательно):</label>
+            <input type="text" id="description" name="description" 
+                   placeholder="Краткое описание файла..."
+                   style="width: 100%; padding: 6px; font-size: 13px; border: 1px solid #ddd; border-radius: 3px;">
+        </div>
+        <div style="margin-bottom: 0;">
+            <button type="submit" class="btn" style="padding: 6px 16px; font-size: 13px;">Загрузить</button>
+        </div>
+    </form>
+</div>
+
+<div class="card" style="margin-top: 15px; padding: 12px;">
+    <form method="GET" action="{{ url_for('storage') }}" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+        <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+            <label for="search" style="font-size: 12px; margin-bottom: 4px;">Поиск:</label>
+            <input type="text" id="search" name="search" value="{{ filter_params.search }}" 
+                   placeholder="Имя файла, описание..." 
+                   style="width: 100%; padding: 6px; font-size: 13px;">
+        </div>
+
+        {% if current_user.is_admin == 1 %}
+        <div class="form-group" style="flex: 0 0 150px; margin-bottom: 0;">
+            <label for="user_id" style="font-size: 12px; margin-bottom: 4px;">Пользователь:</label>
+            <select id="user_id" name="user_id" style="width: 100%; padding: 6px; font-size: 13px;">
+                <option value="">Все</option>
+                {% for user in all_users %}
+                <option value="{{ user.id }}" {% if filter_params.user_id == user.id %}selected{% endif %}>
+                    {{ user.get_display_name() }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div class="form-group" style="flex: 0 0 130px; margin-bottom: 0;">
+            <label for="date_from" style="font-size: 12px; margin-bottom: 4px;">Дата от:</label>
+            <input type="date" id="date_from" name="date_from" value="{{ filter_params.date_from }}" 
+                   style="width: 100%; padding: 6px; font-size: 13px;">
+        </div>
+
+        <div class="form-group" style="flex: 0 0 130px; margin-bottom: 0;">
+            <label for="date_to" style="font-size: 12px; margin-bottom: 4px;">Дата до:</label>
+            <input type="date" id="date_to" name="date_to" value="{{ filter_params.date_to }}" 
+                   style="width: 100%; padding: 6px; font-size: 13px;">
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 0;">
+            <button type="submit" class="btn" style="padding: 6px 16px; font-size: 13px;">Применить</button>
+            <a href="{{ url_for('storage') }}" class="btn btn-secondary" style="padding: 6px 16px; font-size: 13px;">Сбросить</a>
+        </div>
+    </form>
+</div>
+
+{% if files %}
+<div style="margin-top: 15px; overflow-x: auto;">
+    <table class="storage-table">
+        <thead>
+            <tr>
+                <th style="width: 30px;">№</th>
+                <th style="min-width: 250px;">Имя файла</th>
+                <th style="width: 120px;">Тип</th>
+                <th style="width: 100px;">Размер</th>
+                <th style="min-width: 200px;">Описание</th>
+                {% if current_user.is_admin == 1 %}
+                <th style="width: 120px;">Пользователь</th>
+                {% endif %}
+                <th style="width: 140px;">Дата создания</th>
+                <th style="width: 140px;">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr>
+                <td style="text-align: center;">{{ (page - 1) * 20 + loop.index }}</td>
+                <td style="font-weight: 500;">{{ file.original_filename }}</td>
+                <td style="font-size: 12px; color: #666;">{{ file.mime_type or '-' }}</td>
+                <td style="text-align: right; font-size: 12px;">
+                    {% if file.file_size < 1024 %}
+                        {{ file.file_size }} B
+                    {% elif file.file_size < 1024 * 1024 %}
+                        {{ "%.1f"|format(file.file_size / 1024) }} KB
+                    {% else %}
+                        {{ "%.2f"|format(file.file_size / (1024 * 1024)) }} MB
+                    {% endif %}
+                </td>
+                <td style="font-size: 12px; color: #666;">{{ file.description or '-' }}</td>
+                {% if current_user.is_admin == 1 %}
+                <td style="font-size: 12px;">{{ file.user.get_display_name() }}</td>
+                {% endif %}
+                <td style="font-size: 12px; color: #666;">{{ file.created_at.strftime("%d.%m.%Y %H:%M") }}</td>
+                <td style="text-align: center;">
+                    <div style="display: flex; gap: 6px; justify-content: center;">
+                        <a href="{{ url_for('storage_download', file_id=file.id) }}" class="btn-table" style="padding: 4px 10px; font-size: 12px;">Скачать</a>
+                        <form method="POST" action="{{ url_for('storage_delete', file_id=file.id) }}" style="display: inline;" onsubmit="return confirm('Вы уверены, что хотите удалить этот файл?');">
+                            <button type="submit" class="btn-table" style="background: #dc3545; padding: 4px 10px; font-size: 12px; border: none; cursor: pointer;">Удалить</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if total_pages > 1 %}
+<div style="text-align: center; margin-top: 15px;">
+    {% set base_url = url_for('storage') + '?' %}
+    {% set params = [] %}
+    {% if filter_params.user_id %}{% set _ = params.append('user_id=' ~ filter_params.user_id) %}{% endif %}
+    {% if filter_params.date_from %}{% set _ = params.append('date_from=' ~ filter_params.date_from) %}{% endif %}
+    {% if filter_params.date_to %}{% set _ = params.append('date_to=' ~ filter_params.date_to) %}{% endif %}
+    {% if filter_params.search %}{% set _ = params.append('search=' ~ filter_params.search) %}{% endif %}
+    {% set query_string = params|join('&') %}
+    
+    {% if page > 1 %}
+    <a href="{{ base_url }}page={{ page - 1 }}{% if query_string %}&{{ query_string }}{% endif %}" class="btn btn-secondary" style="padding: 6px 16px; font-size: 13px;">← Назад</a>
+    {% endif %}
+    <span style="margin: 0 15px; font-size: 13px;">Страница {{ page }} из {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="{{ base_url }}page={{ page + 1 }}{% if query_string %}&{{ query_string }}{% endif %}" class="btn btn-secondary" style="padding: 6px 16px; font-size: 13px;">Вперед →</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="card">
+    <p class="info-text">Хранилище пусто. Загрузите файлы, чтобы они появились здесь.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .storage-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        font-size: 13px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .storage-table thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .storage-table th {
+        padding: 10px 8px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        white-space: nowrap;
+    }
+    
+    .storage-table tbody tr {
+        border-bottom: 1px solid #e0e0e0;
+        transition: background-color 0.2s;
+    }
+    
+    .storage-table tbody tr:nth-child(even) {
+        background-color: #f8f9ff;
+    }
+    
+    .storage-table tbody tr:hover {
+        background-color: #e8ebff;
+    }
+    
+    .storage-table td {
+        padding: 8px;
+        border-right: 1px solid #e0e0e0;
+        vertical-align: middle;
+    }
+    
+    .storage-table tbody tr:last-child {
+        border-bottom: 2px solid #667eea;
+    }
+    
+    .btn-table {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: opacity 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-table:hover {
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}

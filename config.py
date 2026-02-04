@@ -45,6 +45,9 @@ class Config:
     UPLOAD_FOLDER = "uploads"
     ALLOWED_EXTENSIONS = {"xlsx", "xls", "png", "jpg", "jpeg", "gif", "bmp"}
     
+    # Настройки хранилища файлов
+    STORAGE_FOLDER = "storage"
+    
     # Максимальная длина текста
     MAX_TEXT_LENGTH = int(os.environ.get("MAX_TEXT_LENGTH", "10000"))
     

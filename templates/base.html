@@ -365,11 +365,16 @@
                     <a href="{{ url_for('upload_text') }}">Ввести текст</a>
                     <a href="{{ url_for('decode_qr') }}">Обработать изображение</a>
                     <a href="{{ url_for('archive') }}">Архив</a>
+                    <a href="{{ url_for('storage') }}">Хранилище</a>
+                    <a href="{{ url_for('chat') }}">Чат</a>
+                    {% if current_user.is_admin == 1 %}
+                    <a href="{{ url_for('users') }}">Пользователи</a>
+                    {% endif %}
                     {% endif %}
                 </nav>
                 {% if current_user.is_authenticated %}
                 <div style="color: #666; font-size: 12px; display: flex; align-items: center; gap: 8px;">
-                    <span>Пользователь: <strong>{{ current_user.username }}</strong></span>
+                    <span>Пользователь: <strong>{{ current_user.get_display_name() }}</strong></span>
                     {% if current_user.is_admin == 1 %}
                     <span style="color: #667eea;">[Админ]</span>
                     {% endif %}

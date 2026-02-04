@@ -11,13 +11,14 @@ services:
     volumes:
       - instance_data:/app/instance
       - uploads_data:/app/uploads
+      - storage_data:/app/storage
       - ./static/media:/app/static/media
     restart: unless-stopped
     networks:
       - traefik-network
     command: >
       bash -c "
-      mkdir -p /app/instance /app/uploads /app/static/media;
+      mkdir -p /app/instance /app/uploads /app/storage /app/static/media;
       python /app/init_db.py || true;
       exec gunicorn --bind 0.0.0.0:5000 --workers 4 --threads 2 --timeout 120 app:app
       "
@@ -56,6 +57,8 @@ volumes:
   instance_data:
     driver: local
   uploads_data:
+    driver: local
+  storage_data:
     driver: local
 
 networks:

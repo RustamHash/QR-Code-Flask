@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Редактирование пользователя - Генератор шаблонов для офиса{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>✏️ Редактирование пользователя</h2>
+    <p class="info-text" style="margin-bottom: 0;">Изменение данных пользователя: {{ user.get_display_name() }}</p>
+</div>
+
+<div class="card" style="margin-top: 15px; padding: 15px;">
+    <form method="POST" action="{{ url_for('edit_user', user_id=user.id) }}">
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="username" style="font-size: 12px; margin-bottom: 4px; display: block;">Имя пользователя:</label>
+            <input type="text" id="username" name="username" value="{{ user.username }}" required 
+                   style="width: 100%; max-width: 400px; padding: 8px; font-size: 14px; border: 1px solid #ddd; border-radius: 3px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="full_name" style="font-size: 12px; margin-bottom: 4px; display: block;">Имя (необязательно):</label>
+            <input type="text" id="full_name" name="full_name" value="{{ user.full_name or '' }}" 
+                   placeholder="Полное имя"
+                   style="width: 100%; max-width: 400px; padding: 8px; font-size: 14px; border: 1px solid #ddd; border-radius: 3px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="password" style="font-size: 12px; margin-bottom: 4px; display: block;">Новый пароль (оставьте пустым, чтобы не менять):</label>
+            <input type="password" id="password" name="password" 
+                   placeholder="Оставьте пустым, чтобы не менять пароль"
+                   style="width: 100%; max-width: 400px; padding: 8px; font-size: 14px; border: 1px solid #ddd; border-radius: 3px;">
+            <small style="display: block; margin-top: 4px; color: #666; font-size: 11px;">Минимум 3 символа</small>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label for="is_admin" style="font-size: 12px; margin-bottom: 4px; display: block;">Роль:</label>
+            <select id="is_admin" name="is_admin" style="width: 100%; max-width: 400px; padding: 8px; font-size: 14px; border: 1px solid #ddd; border-radius: 3px;">
+                <option value="0" {% if user.is_admin == 0 %}selected{% endif %}>Обычный пользователь</option>
+                <option value="1" {% if user.is_admin == 1 %}selected{% endif %}>Администратор</option>
+            </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button type="submit" class="btn" style="padding: 8px 20px; font-size: 14px;">Сохранить изменения</button>
+            <a href="{{ url_for('users') }}" class="btn btn-secondary" style="padding: 8px 20px; font-size: 14px; text-decoration: none;">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

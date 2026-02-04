@@ -1,0 +1,567 @@
+{% extends "base.html" %}
+
+{% block title %}Чат - Генератор шаблонов для офиса{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>💬 Групповой чат</h2>
+    <p class="info-text" style="margin-bottom: 0;">Общайтесь со всеми пользователями в реальном времени</p>
+</div>
+
+<div class="card" style="margin-top: 15px; padding: 0; display: flex; flex-direction: column; height: 600px; overflow: hidden;">
+    <!-- Область сообщений -->
+    <div id="messages-container" style="flex: 1; overflow-y: auto; padding: 8px; background: #f8f9fa; min-height: 0;">
+        <div id="messages-list" style="display: flex; flex-direction: column; gap: 0;">
+            <!-- Сообщения будут добавлены через JavaScript -->
+        </div>
+    </div>
+    
+    <!-- Форма отправки -->
+    <div style="padding: 8px; border-top: 1px solid #e0e0e0; background: white;">
+        <form id="chat-form" style="display: flex; gap: 6px; align-items: flex-end;">
+            <textarea 
+                id="message-input" 
+                placeholder="Введите сообщение... (Enter для отправки, Shift+Enter для новой строки)" 
+                rows="1"
+                style="flex: 1; padding: 4px 6px; font-size: 12px; border: 1px solid #ddd; border-radius: 4px; resize: none; font-family: inherit; line-height: 1.3; min-height: 24px; max-height: 120px; overflow-y: auto;"
+                maxlength="5000"></textarea>
+            <button type="submit" class="btn" id="send-button" style="padding: 6px 12px; font-size: 12px; white-space: nowrap;">
+                Отправить
+            </button>
+        </form>
+        <div id="sending-indicator" style="display: none; margin-top: 4px; color: #667eea; font-size: 10px;">
+            Отправка...
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .message {
+        display: flex;
+        gap: 4px;
+        padding: 1px 4px;
+        background: white;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+        animation: slideIn 0.3s ease-out;
+        margin-bottom: 1px;
+        transition: box-shadow 0.2s;
+        align-items: flex-start;
+    }
+    
+    .message:hover {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .message.own-message {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        margin-left: auto;
+        max-width: 75%;
+        flex-direction: row-reverse;
+    }
+    
+    .message.own-message .message-avatar {
+        background: rgba(255, 255, 255, 0.25);
+        color: white;
+    }
+    
+    .message.own-message .message-username {
+        color: rgba(255, 255, 255, 0.95);
+    }
+    
+    .message.own-message .message-time {
+        color: rgba(255, 255, 255, 0.75);
+    }
+    
+    .message-avatar {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 9px;
+        flex-shrink: 0;
+        text-transform: uppercase;
+        margin-top: 1px;
+    }
+    
+    .message.own-message .message-avatar {
+        order: 2;
+    }
+    
+    .message-content {
+        flex: 1;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .message-header {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        margin: 0;
+        padding: 2px 0;
+        flex-wrap: wrap;
+        line-height: 1.2;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        margin-bottom: 2px;
+    }
+    
+    .message.own-message .message-header {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+    }
+    
+    .message-username {
+        font-weight: 600;
+        font-size: 11px;
+        color: #667eea;
+    }
+    
+    .message.own-message .message-username {
+        color: rgba(255, 255, 255, 0.95);
+    }
+    
+    .message-username.admin {
+        color: #dc3545;
+    }
+    
+    .message.own-message .message-username.admin {
+        color: rgba(255, 255, 255, 0.95);
+    }
+    
+    .admin-badge {
+        font-size: 8px;
+        padding: 1px 4px;
+        background: #dc3545;
+        color: white;
+        border-radius: 6px;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+    
+    .message.own-message .admin-badge {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+    }
+    
+    .message-time {
+        font-size: 9px;
+        color: #999;
+        font-weight: 400;
+    }
+    
+    .message.own-message .message-time {
+        color: rgba(255, 255, 255, 0.75);
+    }
+    
+    .message-text {
+        font-size: 12px;
+        line-height: 1.3;
+        color: #333;
+        word-break: break-word;
+        margin: 0;
+        padding: 2px 0;
+        display: block;
+    }
+    
+    .message.own-message .message-text {
+        color: white;
+        padding: 2px 0;
+    }
+    
+    /* Дополнительное визуальное разделение для собственных сообщений */
+    .message.own-message .message-content {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        padding: 2px 4px;
+        margin: 1px 0;
+    }
+    
+    .message.own-message .message-header {
+        padding: 2px 4px;
+        margin: -2px -4px 2px -4px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 4px 4px 0 0;
+    }
+    
+    .message.own-message .message-text {
+        padding: 2px 4px;
+        margin: 0 -4px -2px -4px;
+        border-radius: 0 0 4px 4px;
+    }
+    
+    .date-divider {
+        text-align: center;
+        margin: 10px 0;
+        position: relative;
+    }
+    
+    .date-divider::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 1px;
+        background: #e0e0e0;
+    }
+    
+    .date-divider-text {
+        background: #f8f9fa;
+        padding: 3px 10px;
+        color: #999;
+        font-size: 10px;
+        position: relative;
+        display: inline-block;
+        border-radius: 8px;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    #messages-container {
+        scrollbar-width: thin;
+        scrollbar-color: #667eea #f0f0f0;
+    }
+    
+    #messages-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    #messages-container::-webkit-scrollbar-track {
+        background: #f0f0f0;
+    }
+    
+    #messages-container::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 4px;
+    }
+    
+    #messages-container::-webkit-scrollbar-thumb:hover {
+        background: #764ba2;
+    }
+    
+    .empty-chat {
+        text-align: center;
+        padding: 40px 20px;
+        color: #999;
+    }
+    
+    .empty-chat-icon {
+        font-size: 48px;
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let lastMessageId = 0;
+    let pollingInterval = null;
+    let isSending = false;
+    
+    // Загрузка всех сообщений при загрузке страницы
+    function loadMessages() {
+        fetch('/chat/messages')
+            .then(res => res.json())
+            .then(data => {
+                const messagesList = document.getElementById('messages-list');
+                messagesList.innerHTML = '';
+                
+                if (data.messages && data.messages.length > 0) {
+                    let prevMsg = null;
+                    data.messages.forEach(msg => {
+                        addMessageToChat(msg, prevMsg);
+                        lastMessageId = Math.max(lastMessageId, msg.id);
+                        prevMsg = msg;
+                    });
+                    
+                    scrollToBottom();
+                } else {
+                    messagesList.innerHTML = `
+                        <div class="empty-chat">
+                            <div class="empty-chat-icon">💬</div>
+                            <div>Пока нет сообщений. Начните общение!</div>
+                        </div>
+                    `;
+                }
+            })
+            .catch(err => {
+                console.error('Ошибка загрузки сообщений:', err);
+            });
+    }
+    
+    // Получить инициалы из имени
+    function getInitials(name) {
+        if (!name) return '?';
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    }
+    
+    // Форматирование даты
+    function formatMessageDate(date) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const messageDate = new Date(date);
+        const messageDay = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
+        
+        const timeStr = messageDate.toLocaleTimeString('ru-RU', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        if (messageDay.getTime() === today.getTime()) {
+            return `Сегодня, ${timeStr}`;
+        } else if (messageDay.getTime() === yesterday.getTime()) {
+            return `Вчера, ${timeStr}`;
+        } else {
+            const dateStr = messageDate.toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: messageDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+            });
+            return `${dateStr}, ${timeStr}`;
+        }
+    }
+    
+    // Проверка, нужен ли разделитель даты
+    function needsDateDivider(prevDate, currentDate) {
+        if (!prevDate) return true;
+        const prev = new Date(prevDate);
+        const curr = new Date(currentDate);
+        return prev.toDateString() !== curr.toDateString();
+    }
+    
+    // Добавление сообщения в чат
+    function addMessageToChat(msg, prevMsg = null) {
+        const messagesList = document.getElementById('messages-list');
+        
+        // Проверяем, нужен ли разделитель даты
+        if (needsDateDivider(prevMsg ? prevMsg.created_at : null, msg.created_at)) {
+            const date = new Date(msg.created_at);
+            const dateStr = date.toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+            });
+            
+            const divider = document.createElement('div');
+            divider.className = 'date-divider';
+            divider.innerHTML = `<span class="date-divider-text">${dateStr}</span>`;
+            messagesList.appendChild(divider);
+        }
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message';
+        
+        // Проверяем, является ли сообщение от текущего пользователя
+        const currentUserId = {{ current_user.id }};
+        if (msg.user_id === currentUserId) {
+            messageDiv.classList.add('own-message');
+        }
+        
+        const displayName = msg.display_name || msg.username;
+        const initials = getInitials(displayName);
+        const timeDisplay = formatMessageDate(msg.created_at);
+        
+        messageDiv.innerHTML = `
+            <div class="message-avatar">${initials}</div>
+            <div class="message-content">
+                <div class="message-header">
+                    <span class="message-username ${msg.is_admin ? 'admin' : ''}">${escapeHtml(displayName)}</span>
+                    ${msg.is_admin ? '<span class="admin-badge">Админ</span>' : ''}
+                    <span class="message-time">${timeDisplay}</span>
+                </div>
+                <div class="message-text">${escapeHtml(msg.content)}</div>
+            </div>
+        `;
+        
+        // Сохраняем дату создания для проверки разделителей
+        messageDiv.dataset.createdAt = msg.created_at;
+        
+        messagesList.appendChild(messageDiv);
+    }
+    
+    // Экранирование HTML для безопасности
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Прокрутка вниз
+    function scrollToBottom() {
+        const container = document.getElementById('messages-container');
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    // Начало polling
+    function startPolling() {
+        pollingInterval = setInterval(() => {
+            fetch(`/chat/latest?last_id=${lastMessageId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.messages && data.messages.length > 0) {
+                        const messagesList = document.getElementById('messages-list');
+                        // Получаем последнее сообщение из DOM для проверки разделителя
+                        let lastElement = messagesList.lastElementChild;
+                        let prevMsg = null;
+                        
+                        // Ищем последнее сообщение (не разделитель)
+                        while (lastElement && !lastElement.classList.contains('message')) {
+                            lastElement = lastElement.previousElementSibling;
+                        }
+                        
+                        if (lastElement && lastElement.classList.contains('message')) {
+                            prevMsg = { created_at: lastElement.dataset.createdAt || null };
+                        }
+                        
+                        data.messages.forEach(msg => {
+                            addMessageToChat(msg, prevMsg);
+                            lastMessageId = Math.max(lastMessageId, msg.id);
+                            prevMsg = msg; // Используем текущее сообщение как предыдущее для следующего
+                        });
+                        scrollToBottom();
+                    }
+                })
+                .catch(err => {
+                    console.error('Ошибка polling:', err);
+                });
+        }, 2000); // каждые 2 секунды
+    }
+    
+    // Остановка polling
+    function stopPolling() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+    }
+    
+    // Отправка сообщения
+    function sendMessage() {
+        const input = document.getElementById('message-input');
+        const content = input.value.trim();
+        
+        if (!content || isSending) {
+            return;
+        }
+        
+        isSending = true;
+        const sendButton = document.getElementById('send-button');
+        const indicator = document.getElementById('sending-indicator');
+        
+        sendButton.disabled = true;
+        indicator.style.display = 'block';
+        
+        fetch('/chat/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ content: content })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                input.value = '';
+                // Сбрасываем высоту textarea
+                autoResizeTextarea(input);
+                // Получаем последнее сообщение для проверки разделителя даты
+                const messagesList = document.getElementById('messages-list');
+                let lastElement = messagesList.lastElementChild;
+                let prevMsg = null;
+                
+                // Ищем последнее сообщение (не разделитель)
+                while (lastElement && !lastElement.classList.contains('message')) {
+                    lastElement = lastElement.previousElementSibling;
+                }
+                
+                if (lastElement && lastElement.classList.contains('message')) {
+                    prevMsg = { created_at: lastElement.dataset.createdAt || null };
+                }
+                
+                // Добавляем сообщение сразу для лучшего UX
+                addMessageToChat(data.message, prevMsg);
+                lastMessageId = Math.max(lastMessageId, data.message.id);
+                scrollToBottom();
+            } else {
+                alert('Ошибка: ' + (data.error || 'Не удалось отправить сообщение'));
+            }
+        })
+        .catch(err => {
+            console.error('Ошибка отправки:', err);
+            alert('Ошибка при отправке сообщения');
+        })
+        .finally(() => {
+            isSending = false;
+            sendButton.disabled = false;
+            indicator.style.display = 'none';
+        });
+    }
+    
+    // Обработка формы
+    document.getElementById('chat-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        sendMessage();
+    });
+    
+    // Автоматическая подстройка высоты textarea
+    function autoResizeTextarea(textarea) {
+        textarea.style.height = 'auto';
+        const newHeight = Math.min(textarea.scrollHeight, 120); // max-height: 120px
+        textarea.style.height = newHeight + 'px';
+    }
+    
+    // Отправка по Enter (Shift+Enter для новой строки)
+    const messageInput = document.getElementById('message-input');
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // Автоматическая подстройка высоты при вводе
+    messageInput.addEventListener('input', function() {
+        autoResizeTextarea(this);
+    });
+    
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        loadMessages();
+        startPolling();
+        // Инициализируем высоту textarea
+        autoResizeTextarea(messageInput);
+    });
+    
+    // Остановка polling при уходе со страницы
+    window.addEventListener('beforeunload', function() {
+        stopPolling();
+    });
+</script>
+{% endblock %}
