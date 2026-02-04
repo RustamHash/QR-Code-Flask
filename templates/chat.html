@@ -275,14 +275,24 @@
 
 {% block extra_js %}
 <script>
+    // URL для API чата
+    const CHAT_MESSAGES_URL = '{{ url_for("chat_messages") }}';
+    const CHAT_LATEST_URL = '{{ url_for("chat_latest") }}';
+    const CHAT_SEND_URL = '{{ url_for("chat_send") }}';
+    
     let lastMessageId = 0;
     let pollingInterval = null;
     let isSending = false;
     
     // Загрузка всех сообщений при загрузке страницы
     function loadMessages() {
-        fetch('/chat/messages')
-            .then(res => res.json())
+        fetch(CHAT_MESSAGES_URL)
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            })
             .then(data => {
                 const messagesList = document.getElementById('messages-list');
                 messagesList.innerHTML = '';
@@ -422,8 +432,13 @@
     // Начало polling
     function startPolling() {
         pollingInterval = setInterval(() => {
-            fetch(`/chat/latest?last_id=${lastMessageId}`)
-                .then(res => res.json())
+            fetch(`${CHAT_LATEST_URL}?last_id=${lastMessageId}`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                })
                 .then(data => {
                     if (data.messages && data.messages.length > 0) {
                         const messagesList = document.getElementById('messages-list');
@@ -478,14 +493,19 @@
         sendButton.disabled = true;
         indicator.style.display = 'block';
         
-        fetch('/chat/send', {
+        fetch(CHAT_SEND_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ content: content })
         })
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        })
         .then(data => {
             if (data.success) {
                 input.value = '';
